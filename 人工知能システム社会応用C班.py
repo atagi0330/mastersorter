@@ -63,8 +63,12 @@ while True:
 
                     # --- 4. OpenCVによる輪郭ベースの正確な特徴量計算 ---
                     fruit_roi = frame[y1:y2, x1:x2]
+<<<<<<< HEAD
                     if fruit_roi.size == 0:
                         continue
+=======
+                    if fruit_roi.size == 0: continue
+>>>>>>> cebbc5d29df2953a3c4024346bb9b19d826304bd
                     hsv_roi = cv2.cvtColor(fruit_roi, cv2.COLOR_BGR2HSV)
 
                     color_name = class_to_color.get(class_name)
@@ -81,6 +85,7 @@ while True:
                                                      np.array(color_ranges[color_name][1]))
 
                         contours, _ = cv2.findContours(final_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+<<<<<<< HEAD
 
                         # 輪郭が見つかった場合
                         if contours:
@@ -89,23 +94,44 @@ while True:
 
                             # 輪郭が一定以上の大きさを持つ場合
                             if area_pixels > 100:
+=======
+                        if contours:
+                            largest_contour = max(contours, key=cv2.contourArea)
+                            area_pixels = cv2.contourArea(largest_contour)
+                            if area_pixels > 100:
+
+                                # --- ここからが変更点 ---
+>>>>>>> cebbc5d29df2953a3c4024346bb9b19d826304bd
                                 # 実際の面積(mm^2)を計算
                                 area_mm2 = area_pixels * (mm_per_pixel ** 2)
 
                                 # 面積(ピクセル)から直径(mm)を計算
                                 if area_pixels > 0:
+<<<<<<< HEAD
                                     radius_from_area_pixels = math.sqrt(area_pixels / math.pi)
+=======
+                                    radius_from_area_pixels = math.sqrt(area_pixels / 3.14)
+>>>>>>> cebbc5d29df2953a3c4024346bb9b19d826304bd
                                     diameter_pixels = radius_from_area_pixels * 2
                                     diameter_mm = diameter_pixels * mm_per_pixel
                                 else:
                                     diameter_mm = 0
+<<<<<<< HEAD
+=======
+                                # --- 変更点ここまで ---
+>>>>>>> cebbc5d29df2953a3c4024346bb9b19d826304bd
 
                                 # --- 5. 結果の描画 ---
                                 (x_circle_roi, y_circle_roi), _ = cv2.minEnclosingCircle(largest_contour)
                                 center_in_frame = (int(x_circle_roi + x1), int(y_circle_roi + y1))
+<<<<<<< HEAD
                                 contour_in_frame = largest_contour + (x1, y1)
 
                                 # 期待される色と一致するため緑で輪郭を描画
+=======
+
+                                contour_in_frame = largest_contour + (x1, y1)
+>>>>>>> cebbc5d29df2953a3c4024346bb9b19d826304bd
                                 cv2.drawContours(frame, [contour_in_frame], -1, (0, 255, 0), 3)
                                 cv2.circle(frame, center_in_frame, 7, (0, 0, 255), -1)
 
@@ -122,6 +148,7 @@ while True:
                                 cv2.putText(frame, f"Diameter: {diameter_mm:.1f} mm",
                                             (center_in_frame[0] - 60, text_y_pos + 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
                                             (255, 255, 255), 2)
+<<<<<<< HEAD
                         # 輪郭が見つからなかった場合（色が違う場合）
                         else:
                             # 期待される色と違うため、YOLOのバウンディングボックスを赤で描画
@@ -131,10 +158,16 @@ while True:
                             cv2.putText(frame, f"{class_name.capitalize()} (Color mismatch)", (x1, text_y_pos),
                                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
 
+=======
+>>>>>>> cebbc5d29df2953a3c4024346bb9b19d826304bd
 
     cv2.imshow("YOLOv9 + Diameter from Area", frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
 cap.release()
+<<<<<<< HEAD
 cv2.destroyAllWindows()
+=======
+cv2.destroyAllWindows()
+>>>>>>> cebbc5d29df2953a3c4024346bb9b19d826304bd
