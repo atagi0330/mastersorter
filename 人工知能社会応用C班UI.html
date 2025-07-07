@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>果物品質管理AI匠ソーター</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- React and ReactDOM CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX transformation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for better aesthetics */
+        .max-h-60::-webkit-scrollbar, .max-h-80::-webkit-scrollbar {
+            width: 8px;
+        }
+        .max-h-60::-webkit-scrollbar-track, .max-h-80::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .max-h-60::-webkit-scrollbar-thumb, .max-h-80::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .max-h-60::-webkit-scrollbar-thumb:hover, .max-h-80::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Modal specific styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-width: 90%;
+            width: 400px;
+            text-align: center;
+            position: relative;
+        }
+        .modal-close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #9ca3af;
+        }
+        .modal-close-button:hover {
+            color: #4b5563;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
+
+        // Inline SVG Icons (replacing lucide-react)
+        const UploadIcon = ({ className = "h-6 w-6" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+        );
+
+        const CheckCircleIcon = ({ className = "h-6 w-6" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+        );
+
+        const XCircleIcon = ({ className = "h-6 w-6" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+        );
+
+        const Loader2Icon = ({ className = "h-6 w-6" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+            </svg>
+        );
+
+        const PlusCircleIcon = ({ className = "h-6 w-6" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+        );
+
+        const SettingsIcon = ({ className = "h-6 w-6" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.78 1.28a2 2 0 0 0 .73 2.73l.15.08a2 2 0 0 1 1 1.73v.44a2 2 0 0 1-2 2v.18a2 2 0 0 0-1 1.73l-.43.25a2 2 0 0 0 0 2l.15.08a2 2 0 0 1 1 1.73v.44a2 2 0 0 0 2 2v.18a2 2 0 0 1 1 1.73l.43.25a2 2 0 0 0 2 0l.15-.08a2 2 0 0 1 2.73.73l.78 1.28a2 2 0 0 0-.73 2.73l-.15.08a2 2 0 0 1-1 1.73v.44a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.78-1.28a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.73v-.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 0 0-2l-.15-.08a2 2 0 0 1-1-1.73v-.44a2 2 0 0 0-2-2v-.18a2 2 0 0 1-1-1.73l-.43-.25a2 2 0 0 0-2-2l-.15.08a2 2 0 0 1-2.73-.73l-.78-1.28a2 2 0 0 0-.73-2.73l.15-.08A2 2 0 0 1 12.22 2z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+        );
+
+        const QrCodeIcon = ({ className = "h-6 w-6" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="12" y1="12" x2="12" y2="12"></line>
+                <line x1="16" y1="16" x2="16" y2="16"></line>
+                <line x1="8" y1="8" x2="8" y2="8"></line>
+                <path d="M16 8v.01"></path>
+                <path d="M8 16v.01"></path>
+                <path d="M16 12v.01"></path>
+                <path d="M12 16v.01"></path>
+                <path d="M8 12v.01"></path>
+            </svg>
+        );
+
+        const PackageIcon = ({ className = "h-6 w-6" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M12.89 1.45l8 4A2 2 0 0 1 22 7.24v9.52a2 2 0 0 1-1.11 1.79l-8 4a2 2 0 0 1-1.79 0l-8-4a2 2 0 0 1-1.11-1.79V7.24a2 2 0 0 1 1.11-1.79l8-4a2 2 0 0 1 1.78 0z"></path>
+                <polyline points="2.32 6.16 12 11 21.68 6.16"></polyline>
+                <line x1="12" y1="22.76" x2="12" y2="11"></line>
+                <line x1="7" y1="15.5" x2="17" y2="15.5"></line>
+            </svg>
+        );
+
+        const SaveIcon = ({ className = "h-6 w-6" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+        );
+
+        const BookOpenIcon = ({ className = "h-6 w-6" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+            </svg>
+        );
+
+        const LayersIcon = ({ className = "h-6 w-6" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M12 18.5L2 12l10-6.5L22 12l-10 6.5z"></path>
+                <path d="M12 18.5V22"></path>
+                <path d="M2 12V2.5"></path>
+                <path d="M22 12V2.5"></path>
+                <path d="M12 6.5V2"></path>
+            </svg>
+        );
+
+        const PlayCircleIcon = ({ className = "h-6 w-6" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="12" cy="12" r="10"></circle>
+                <polygon points="10 8 16 12 10 16 10 8"></polygon>
+            </svg>
+        );
+
+
+        // Custom Modal Component
+        const CustomModal = ({ message, onClose }) => {
+            return (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <button className="modal-close-button" onClick={onClose}>&times;</button>
+                        <p className="text-xl font-semibold text-gray-800 mb-4">{message}</p>
+                        <button
+                            onClick={onClose}
+                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                        >
+                            OK
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        // Main App component
+        const App = () => {
+            const [currentView, setCurrentView] = useState('modelSelection'); // 'modelSelection', 'modelCreation', 'sortingProcess', 'batchManagement'
+            const [selectedModel, setSelectedModel] = useState(null); // 選択されたAIモデル
+            const [newModelName, setNewModelName] = useState(''); // 新規作成するモデル名
+            const [modelType, setModelType] = useState(null); // 'appearance' (外観), 'internal' (内部品質)
+            const [uploadedMinStandardImage, setUploadedMinStandardImage] = useState(null); // 最低基準のお手本画像
+            const [uploadedMaxStandardImage, setUploadedMaxStandardImage] = useState(null); // 最高基準のお手本画像
+            const [sampleMeasurement, setSampleMeasurement] = useState(''); // お手本の実測値 (例: 糖度16度)
+            const [isLearning, setIsLearning] = useState(false); // AI学習中のローディング状態
+
+            const [productionLotName, setProductionLotName] = useState(''); // 生産ロット名
+            const [isSorting, setIsSorting] = useState(false); // 選別中のローディング状態
+            const [sortingResults, setSortingResults] = useState([]); // 選別結果の配列
+            const [qrCodesGenerated, setQrCodesGenerated] = useState(false); // QRコードが生成されたか
+
+            const [processedCount, setProcessedCount] = useState(0); // 処理された果物の数
+            const totalFruitsToProcess = useRef(0); // 処理する果物の総数
+
+            const minFileInputRef = useRef(null); // 最低基準ファイル入力要素への参照
+            const maxFileInputRef = useRef(null); // 最高基準ファイル入力要素への参照
+
+            const [modalMessage, setModalMessage] = useState(null); // State for modal message
+
+            // New states for real-time sorting simulation
+            const [currentFruitImage, setCurrentFruitImage] = useState(null); // 画像URL
+            const [currentFruitQuality, setCurrentFruitQuality] = useState(null); // 品質
+            const [currentFruitId, setCurrentFruitId] = useState(null); // 果物ID
+
+            // ダミーの既存AIモデルデータ
+            const existingModels = [
+                { id: 'model-001', name: '〇〇農園 極甘一番成りモデル Ver.2', type: 'internal', lastUsed: '2024/06/28' },
+                { id: 'model-002', name: '△△農園 美形桃選別モデル', type: 'appearance', lastUsed: '2024/06/20' },
+                { id: 'model-003', name: '□□農園 完熟トマトモデル', type: 'internal', lastUsed: '2024/06/15' },
+            ];
+
+            // 画像アップロードの処理
+            const handleImageUpload = (event, type) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        if (type === 'min') {
+                            setUploadedMinStandardImage(reader.result);
+                        } else if (type === 'max') {
+                            setUploadedMaxStandardImage(reader.result);
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            // ファイル入力クリックをトリガーする
+            const triggerFileInput = (type) => {
+                if (type === 'min') {
+                    minFileInputRef.current.click();
+                } else if (type === 'max') {
+                    maxFileInputRef.current.click();
+                }
+            };
+
+            // AI学習のシミュレーション
+            const handleStartLearning = () => {
+                if (!newModelName || !modelType) {
+                    setModalMessage('モデル名と選別タイプを選択してください。');
+                    return;
+                }
+                if (modelType === 'appearance' && (!uploadedMinStandardImage || !uploadedMaxStandardImage)) {
+                    setModalMessage('最低基準と最高基準のお手本画像を両方アップロードしてください。');
+                    return;
+                }
+                if (modelType === 'internal' && (!uploadedMinStandardImage || !uploadedMaxStandardImage || !sampleMeasurement)) {
+                    setModalMessage('最低基準と最高基準のお手本画像、および実測値を入力してください。');
+                    return;
+                }
+
+                setIsLearning(true);
+                setTimeout(() => {
+                    setModalMessage(`AIモデル「${newModelName}」の学習が完了しました！`);
+                    setSelectedModel({ id: `model-${Date.now()}`, name: newModelName, type: modelType, lastUsed: new Date().toLocaleDateString() });
+                    setNewModelName('');
+                    setModelType(null);
+                    setUploadedMinStandardImage(null);
+                    setUploadedMaxStandardImage(null);
+                    setSampleMeasurement('');
+                    setIsLearning(false);
+                    setCurrentView('modelSelection'); // 学習完了後、モデル選択画面に戻る
+                }, 3000); // 3秒間の遅延をシミュレート
+            };
+
+            // 自動選別の開始シミュレーション (リアルタイムカメラフィードを模倣)
+            const handleStartSorting = () => {
+                if (!selectedModel) {
+                    setModalMessage('選別に使用するAIモデルを選択してください。');
+                    return;
+                }
+                if (!productionLotName) {
+                    setModalMessage('生産ロット名を入力してください。');
+                    return;
+                }
+
+                setIsSorting(true);
+                setSortingResults([]);
+                setProcessedCount(0); // 処理された果物の数をリセット
+                totalFruitsToProcess.current = Math.floor(Math.random() * 50) + 50; // 50〜100個の果物をシミュレート
+
+                let count = 0;
+                const interval = setInterval(() => {
+                    if (count < totalFruitsToProcess.current) {
+                        // Simulate a new fruit appearing
+                        const fruitId = `fruit-${count + 1}`;
+                        const qualityScore = Math.random();
+                        let quality = '';
+                        let color = '';
+                        if (qualityScore > 0.8) {
+                            quality = '優良';
+                            color = '00FF00'; // Green
+                        } else if (qualityScore > 0.5) {
+                            quality = '良';
+                            color = 'FFFF00'; // Yellow
+                        } else {
+                            quality = '要確認';
+                            color = 'FF0000'; // Red
+                        }
+
+                        // Generate a placeholder image for the fruit
+                        const imgSize = 200;
+                        const fruitImage = `https://placehold.co/${imgSize}x${imgSize}/${color}/FFFFFF?text=Fruit+${count + 1}`;
+
+                        setCurrentFruitImage(fruitImage);
+                        setCurrentFruitQuality(quality);
+                        setCurrentFruitId(fruitId);
+
+                        // After a short delay, add to results and update count
+                        setTimeout(() => {
+                            setSortingResults(prev => [...prev, { id: fruitId, quality, score: (qualityScore * 100).toFixed(2) }]);
+                            setProcessedCount(prev => prev + 1);
+                        }, 200); // Simulate a short processing time per fruit
+
+                        count++;
+                    } else {
+                        clearInterval(interval);
+                        setIsSorting(false);
+                        setCurrentFruitImage(null); // Clear camera feed
+                        setCurrentFruitQuality(null);
+                        setCurrentFruitId(null);
+                        setModalMessage(`生産ロット「${productionLotName}」の選別が完了しました！`);
+                    }
+                }, 300); // Simulate fruit appearing every 300ms
+            };
+
+            // QRコード生成のシミュレーション
+            const handleGenerateQrCodes = () => {
+                if (sortingResults.length === 0) {
+                    setModalMessage('選別結果がありません。');
+                    return;
+                }
+                setQrCodesGenerated(true);
+                setModalMessage('ロットごとのQRコードが生成されました！');
+            };
+
+            // 選別作業画面のリセット
+            const resetSortingProcess = () => {
+                setProductionLotName('');
+                setSortingResults([]);
+                setProcessedCount(0);
+                totalFruitsToProcess.current = 0;
+                setQrCodesGenerated(false);
+                setIsSorting(false);
+                setCurrentFruitImage(null);
+                setCurrentFruitQuality(null);
+                setCurrentFruitId(null);
+            };
+
+            // ビューの切り替え
+            const renderContent = () => {
+                switch (currentView) {
+                    case 'modelSelection':
+                        return (
+                            <div className="space-y-6 w-full">
+                                <h2 className="text-3xl font-bold text-green-800 mb-6 text-center">選別モデルの選択</h2>
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    {/* 新規作成 */}
+                                    <div
+                                        className="bg-green-100 p-6 rounded-2xl border-2 border-green-300 flex flex-col items-center justify-center cursor-pointer hover:bg-green-200 transition-all duration-300 shadow-lg hover:shadow-xl"
+                                        onClick={() => setCurrentView('modelCreation')}
+                                    >
+                                        <PlusCircleIcon className="h-16 w-16 text-green-600 mb-4" />
+                                        <p className="text-xl font-semibold text-green-700">新規モデルを作成</p>
+                                        <p className="text-sm text-gray-600 mt-1 text-center">農家独自の基準をAIに学習させます</p>
+                                    </div>
+
+                                    {/* 既存モデルを選択 */}
+                                    <div className="bg-blue-100 p-6 rounded-2xl border-2 border-blue-300 shadow-lg">
+                                        <h3 className="text-xl font-semibold text-blue-700 mb-4 text-center">既存モデルを選択</h3>
+                                        <div className="max-h-60 overflow-y-auto space-y-3 pr-2">
+                                            {existingModels.length > 0 ? (
+                                                existingModels.map((model) => (
+                                                    <button
+                                                        key={model.id}
+                                                        onClick={() => {
+                                                            setSelectedModel(model);
+                                                            resetSortingProcess(); // モデル選択時に選別作業の状態をリセット
+                                                            setCurrentView('sortingProcess'); // モデル選択後、選別プロセスへ
+                                                        }}
+                                                        className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 flex flex-col
+                                                            ${selectedModel?.id === model.id
+                                                                ? 'bg-blue-600 text-white border-blue-700 shadow-md transform scale-[1.02]'
+                                                                : 'bg-white text-blue-800 border-blue-200 hover:bg-blue-50 hover:border-blue-300'
+                                                            }`}
+                                                    >
+                                                        <span className="font-bold text-lg">{model.name}</span>
+                                                        <span className="text-sm opacity-90">タイプ: {model.type === 'internal' ? '内部品質' : '外観'}</span>
+                                                        <span className="text-xs opacity-80">最終使用: {model.lastUsed}</span>
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                <p className="text-gray-600 text-center">既存モデルがありません。</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+
+                    case 'modelCreation':
+                        return (
+                            <div className="space-y-6 w-full">
+                                <h2 className="text-3xl font-bold text-green-800 mb-6 text-center">新規AIモデルの作成</h2>
+
+                                {/* モデル名入力 */}
+                                <div>
+                                    <label htmlFor="modelName" className="block text-lg font-medium text-gray-700 mb-2">モデル名</label>
+                                    <input
+                                        type="text"
+                                        id="modelName"
+                                        value={newModelName}
+                                        onChange={(e) => setNewModelName(e.target.value)}
+                                        placeholder="例: 〇〇農園 極甘一番成りモデル"
+                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 text-lg"
+                                    />
+                                </div>
+
+                                {/* 選別タイプ選択 */}
+                                <div>
+                                    <label className="block text-lg font-medium text-gray-700 mb-2">選別タイプ</label>
+                                    <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+                                        <button
+                                            onClick={() => setModelType('appearance')}
+                                            className={`flex-1 p-4 rounded-xl border-2 transition-all duration-200 text-lg font-medium flex items-center justify-center
+                                                ${modelType === 'appearance'
+                                                    ? 'bg-purple-600 text-white border-purple-700 shadow-md'
+                                                    : 'bg-white text-purple-700 border-purple-300 hover:bg-purple-50'
+                                                }`}
+                                        >
+                                            <LayersIcon className="h-6 w-6 mr-2" /> 外観基準
+                                        </button>
+                                        <button
+                                            onClick={() => setModelType('internal')}
+                                            className={`flex-1 p-4 rounded-xl border-2 transition-all duration-200 text-lg font-medium flex items-center justify-center
+                                                ${modelType === 'internal'
+                                                    ? 'bg-purple-600 text-white border-purple-700 shadow-md'
+                                                    : 'bg-white text-purple-700 border-purple-300 hover:bg-purple-50'
+                                                }`}
+                                        >
+                                            <BookOpenIcon className="h-6 w-6 mr-2" /> 内部品質基準
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* お手本画像アップロード */}
+                                {modelType && (
+                                    <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
+                                        <h3 className="text-xl font-semibold text-gray-700 mb-4 text-center">お手本を登録</h3>
+                                        <p className="text-sm text-gray-600 mb-4 text-center">最低基準と最高基準の画像をアップロードして、その間の品質をAIに学習させます。</p>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {/* 最低基準画像アップロード */}
+                                            <div
+                                                className="w-full h-48 border-4 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer bg-white overflow-hidden group hover:border-gray-500 transition-all duration-300 relative p-2"
+                                                onClick={() => triggerFileInput('min')}
+                                            >
+                                                <p className="text-md font-medium text-gray-700 mb-2">最低基準</p>
+                                                {uploadedMinStandardImage ? (
+                                                    <img
+                                                        src={uploadedMinStandardImage}
+                                                        alt="最低基準お手本画像"
+                                                        className="object-cover w-full h-full rounded-xl"
+                                                    />
+                                                ) : (
+                                                    <div className="text-center text-gray-400 group-hover:text-gray-600 transition-colors duration-300">
+                                                        <UploadIcon className="mx-auto h-12 w-12 mb-2" />
+                                                        <p className="text-md font-medium">画像をアップロード</p>
+                                                    </div>
+                                                )}
+                                                <input
+                                                    type="file"
+                                                    ref={minFileInputRef}
+                                                    onChange={(e) => handleImageUpload(e, 'min')}
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                />
+                                            </div>
+
+                                            {/* 最高基準画像アップロード */}
+                                            <div
+                                                className="w-full h-48 border-4 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer bg-white overflow-hidden group hover:border-gray-500 transition-all duration-300 relative p-2"
+                                                onClick={() => triggerFileInput('max')}
+                                            >
+                                                <p className="text-md font-medium text-gray-700 mb-2">最高基準</p>
+                                                {uploadedMaxStandardImage ? (
+                                                    <img
+                                                        src={uploadedMaxStandardImage}
+                                                        alt="最高基準お手本画像"
+                                                        className="object-cover w-full h-full rounded-xl"
+                                                    />
+                                                ) : (
+                                                    <div className="text-center text-gray-400 group-hover:text-gray-600 transition-colors duration-300">
+                                                        <UploadIcon className="mx-auto h-12 w-12 mb-2" />
+                                                        <p className="text-md font-medium">画像をアップロード</p>
+                                                    </div>
+                                                )}
+                                                <input
+                                                    type="file"
+                                                    ref={maxFileInputRef}
+                                                    onChange={(e) => handleImageUpload(e, 'max')}
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {modelType === 'internal' && (
+                                            <div className="mt-4">
+                                                <label htmlFor="measurement" className="block text-md font-medium text-gray-700 mb-2">実測値 (例: 糖度16度)</label>
+                                                <input
+                                                    type="text"
+                                                    id="measurement"
+                                                    value={sampleMeasurement}
+                                                    onChange={(e) => setSampleMeasurement(e.target.value)}
+                                                    placeholder="例: 糖度16度, 酸度0.5%"
+                                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 text-md"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* AI学習開始ボタン */}
+                                <button
+                                    onClick={handleStartLearning}
+                                    disabled={isLearning || !newModelName || !modelType || (!uploadedMinStandardImage || !uploadedMaxStandardImage) || (modelType === 'internal' && !sampleMeasurement)}
+                                    className="w-full bg-green-600 text-white py-4 rounded-xl text-xl font-bold flex items-center justify-center transition-all duration-300 shadow-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl transform hover:-translate-y-0.5"
+                                >
+                                    {isLearning ? (
+                                        <>
+                                            <Loader2Icon className="animate-spin mr-3 h-6 w-6" />
+                                            AI学習中...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <SaveIcon className="mr-3 h-6 w-6" />
+                                            AI学習を開始
+                                        </>
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => setCurrentView('modelSelection')}
+                                    className="w-full bg-gray-300 text-gray-800 py-3 rounded-xl text-lg font-semibold hover:bg-gray-400 transition-colors duration-300"
+                                >
+                                    戻る
+                                </button>
+                            </div>
+                        );
+
+                    case 'sortingProcess':
+                        return (
+                            <div className="space-y-8 w-full">
+                                <h2 className="text-3xl font-extrabold text-blue-800 mb-6 text-center">選別作業の実行</h2>
+
+                                {/* Step 1: モデルとロット情報の確認 */}
+                                <div className="bg-blue-50 p-6 rounded-2xl border border-blue-200 shadow-lg">
+                                    <h3 className="text-xl font-semibold text-blue-700 mb-4 flex items-center">
+                                        <CheckCircleIcon className="h-6 w-6 mr-2 text-blue-500" /> 1. モデルとロット情報の確認
+                                    </h3>
+                                    {selectedModel ? (
+                                        <div className="mb-4">
+                                            <p className="text-lg text-blue-800">
+                                                選択中のAIモデル: <span className="font-bold">{selectedModel.name}</span> ({selectedModel.type === 'internal' ? '内部品質' : '外観'})
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-red-500 text-lg mb-4">AIモデルが選択されていません。モデル選択画面に戻ってください。</p>
+                                    )}
+
+                                    <div>
+                                        <label htmlFor="lotName" className="block text-lg font-medium text-gray-700 mb-2">生産ロット名</label>
+                                        <input
+                                            type="text"
+                                            id="lotName"
+                                            value={productionLotName}
+                                            onChange={(e) => setProductionLotName(e.target.value)}
+                                            placeholder="例: 2025年7月収穫桃ロットA"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-lg"
+                                            disabled={isSorting || sortingResults.length > 0} // 選別中または結果がある場合は入力不可
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Step 2: 選別機とAIの連携 */}
+                                <div className="bg-yellow-50 p-6 rounded-2xl border border-yellow-200 shadow-lg">
+                                    <h3 className="text-xl font-semibold text-yellow-700 mb-4 flex items-center">
+                                        <SettingsIcon className="h-6 w-6 mr-2 text-yellow-500" /> 2. 選別機とAIの連携
+                                    </h3>
+                                    <div className="flex items-center justify-center space-x-4 py-4">
+                                        {isSorting ? (
+                                            <>
+                                                <Loader2Icon className="animate-spin h-10 w-10 text-yellow-600" />
+                                                <p className="text-xl font-semibold text-yellow-700">選別機とAIを連携中...</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CheckCircleIcon className="h-10 w-10 text-green-600" />
+                                                <p className="text-xl font-semibold text-green-700">選別機とAIの連携準備完了</p>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Step 3: 自動選別を開始 */}
+                                <div className="bg-green-50 p-6 rounded-2xl border border-green-200 shadow-lg">
+                                    <h3 className="text-xl font-semibold text-green-700 mb-4 flex items-center">
+                                        <PackageIcon className="h-6 w-6 mr-2 text-green-500" /> 3. 自動選別を開始
+                                    </h3>
+                                    <button
+                                        onClick={handleStartSorting}
+                                        disabled={isSorting || !selectedModel || !productionLotName || sortingResults.length > 0} // 選別中、モデル未選択、ロット名未入力、または結果がある場合は無効
+                                        className="w-full bg-blue-600 text-white py-4 rounded-xl text-xl font-bold flex items-center justify-center transition-all duration-300 shadow-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl transform hover:-translate-y-0.5"
+                                    >
+                                        {isSorting ? (
+                                            <>
+                                                <Loader2Icon className="animate-spin mr-3 h-6 w-6" />
+                                                選別中 ({processedCount}/{totalFruitsToProcess.current})
+                                            </>
+                                        ) : (
+                                            <>
+                                                <PlayCircleIcon className="mr-3 h-6 w-6" />
+                                                自動選別を開始
+                                            </>
+                                        )}
+                                    </button>
+
+                                    {isSorting && (
+                                        <div className="w-full bg-gray-200 rounded-full h-4 mt-4 overflow-hidden">
+                                            <div
+                                                className="bg-blue-500 h-4 rounded-full transition-all duration-100 ease-linear"
+                                                style={{ width: `${(processedCount / totalFruitsToProcess.current) * 100}%` }}
+                                            ></div>
+                                        </div>
+                                    )}
+
+                                    {/* Camera Feed Simulation */}
+                                    {isSorting && (
+                                        <div className="mt-6 p-4 bg-gray-800 rounded-xl text-white text-center">
+                                            <h4 className="text-lg font-semibold mb-3">カメラフィード</h4>
+                                            {currentFruitImage ? (
+                                                <div className="flex flex-col items-center">
+                                                    <img src={currentFruitImage} alt="選別中の果物" className="w-32 h-32 object-cover rounded-lg border-2 border-white shadow-lg" />
+                                                    <p className="mt-2 text-md">ID: {currentFruitId}</p>
+                                                    <p className={`text-xl font-bold mt-1 ${
+                                                        currentFruitQuality === '優良' ? 'text-green-400' :
+                                                        currentFruitQuality === '良' ? 'text-yellow-400' :
+                                                        'text-red-400'
+                                                    }`}>
+                                                        品質: {currentFruitQuality}
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <p className="text-gray-400">果物を検出中...</p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 選別結果概要 */}
+                                {sortingResults.length > 0 && (
+                                    <div className="mt-8 p-6 bg-white rounded-xl border border-blue-200 shadow-md">
+                                        <h3 className="text-2xl font-bold text-blue-800 mb-4 text-center">選別結果概要</h3>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center text-lg font-semibold">
+                                            <div className="p-3 bg-green-100 rounded-lg">
+                                                優良: {sortingResults.filter(r => r.quality === '優良').length}個
+                                            </div>
+                                            <div className="p-3 bg-yellow-100 rounded-lg">
+                                                良: {sortingResults.filter(r => r.quality === '良').length}個
+                                            </div>
+                                            <div className="p-3 bg-red-100 rounded-lg">
+                                                要確認: {sortingResults.filter(r => r.quality === '要確認').length}個
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => setCurrentView('batchManagement')}
+                                            className="mt-6 w-full bg-indigo-600 text-white py-3 rounded-xl text-lg font-bold hover:bg-indigo-700 transition-colors duration-300 shadow-md"
+                                        >
+                                            ロット管理へ進む
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Navigation buttons */}
+                                <div className="flex flex-col sm:flex-row justify-between mt-8 space-y-4 sm:space-y-0 sm:space-x-4">
+                                    <button
+                                        onClick={() => {
+                                            resetSortingProcess(); // 状態をリセット
+                                            setCurrentView('modelSelection'); // モデル選択画面に戻る
+                                        }}
+                                        className="w-full sm:w-1/2 bg-gray-300 text-gray-800 py-3 rounded-xl text-lg font-semibold hover:bg-gray-400 transition-colors duration-300"
+                                    >
+                                        モデル選択に戻る
+                                    </button>
+                                    <button
+                                        onClick={resetSortingProcess} // 選別プロセスのみをリセット
+                                        disabled={isSorting} // 選別中はリセット不可
+                                        className="w-full sm:w-1/2 bg-red-300 text-red-800 py-3 rounded-xl text-lg font-semibold hover:bg-red-400 transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        選別をリセット
+                                    </button>
+                                </div>
+                            </div>
+                        );
+
+                    case 'batchManagement':
+                        return (
+                            <div className="space-y-6 w-full">
+                                <h2 className="text-3xl font-bold text-purple-800 mb-6 text-center">ロット情報の管理とQRコード発行</h2>
+
+                                {productionLotName && (
+                                    <div className="bg-purple-50 p-4 rounded-xl border border-purple-200 text-center shadow-sm">
+                                        <p className="text-lg text-purple-700">
+                                            現在のロット: <span className="font-bold">{productionLotName}</span>
+                                        </p>
+                                        {selectedModel && (
+                                            <p className="text-md text-purple-600">
+                                                使用モデル: {selectedModel.name}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* 選別結果詳細 */}
+                                {sortingResults.length > 0 && (
+                                    <div className="bg-white p-6 rounded-xl border border-purple-200 shadow-md max-h-80 overflow-y-auto">
+                                        <h3 className="text-xl font-bold text-purple-700 mb-3">選別された果物一覧</h3>
+                                        <ul className="space-y-2">
+                                            {sortingResults.map((fruit) => (
+                                                <li key={fruit.id} className="flex flex-col sm:flex-row justify-between items-center p-2 border-b border-gray-100 last:border-b-0">
+                                                    <span className="text-gray-700">果物ID: {fruit.id}</span>
+                                                    <span className={`font-semibold ${
+                                                        fruit.quality === '優良' ? 'text-green-600' :
+                                                        fruit.quality === '良' ? 'text-yellow-600' :
+                                                        'text-red-600'
+                                                    }`}>
+                                                        品質: {fruit.quality} ({fruit.score}%)
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {/* QRコード発行ボタン */}
+                                <button
+                                    onClick={handleGenerateQrCodes}
+                                    disabled={qrCodesGenerated || sortingResults.length === 0}
+                                    className="w-full bg-purple-600 text-white py-4 rounded-xl text-xl font-bold flex items-center justify-center transition-all duration-300 shadow-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl transform hover:-translate-y-0.5"
+                                >
+                                    {qrCodesGenerated ? (
+                                        <>
+                                            <CheckCircleIcon className="mr-3 h-6 w-6" />
+                                            QRコード生成済み
+                                        </>
+                                    ) : (
+                                        <>
+                                            <QrCodeIcon className="mr-3 h-6 w-6" />
+                                            ロットごとのQRコードを発行
+                                        </>
+                                    )}
+                                </button>
+
+                                {qrCodesGenerated && (
+                                    <div className="bg-green-50 p-6 rounded-xl border border-green-200 text-center">
+                                        <p className="text-lg font-semibold text-green-700">
+                                            QRコードが正常に生成されました。<br />
+                                            各ロットに紐付けて出荷準備を進めてください。
+                                        </p>
+                                        <div className="mt-4 text-gray-500 text-sm">
+                                            （注: このUIではQRコードの画像はシミュレーションです）
+                                        </div>
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={() => {
+                                        setCurrentView('modelSelection');
+                                        resetSortingProcess(); // 全ての選別関連の状態をリセットしてモデル選択に戻る
+                                        setSelectedModel(null); // モデルもリセット
+                                    }}
+                                    className="w-full bg-gray-300 text-gray-800 py-3 rounded-xl text-lg font-semibold hover:bg-gray-400 transition-colors duration-300"
+                                >
+                                    新しい選別作業を開始
+                                </button>
+                            </div>
+                        );
+
+                    default:
+                        return null;
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-green-50 to-lime-100 flex items-center justify-center p-4 font-inter">
+                    <div className="bg-white rounded-3xl shadow-xl p-8 w-full max-w-4xl border border-gray-100 transform transition-all duration-300 hover:scale-[1.01]">
+                        {/* ヘッダー */}
+                        <h1 className="text-4xl font-extrabold text-center text-green-800 mb-8 tracking-tight">
+                            果物品質管理AI匠ソーター
+                        </h1>
+
+                        {/* ナビゲーションバー */}
+                        <div className="flex flex-wrap justify-center mb-8 gap-4">
+                            <button
+                                onClick={() => setCurrentView('modelSelection')}
+                                className={`px-6 py-3 rounded-full text-lg font-semibold transition-all duration-300
+                                    ${currentView === 'modelSelection' ? 'bg-green-600 text-white shadow-md' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                            >
+                                モデル選択
+                            </button>
+                            <button
+                                onClick={() => setCurrentView('sortingProcess')}
+                                disabled={!selectedModel}
+                                className={`px-6 py-3 rounded-full text-lg font-semibold transition-all duration-300
+                                    ${currentView === 'sortingProcess' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed'}`}
+                            >
+                                選別作業
+                            </button>
+                            <button
+                                onClick={() => setCurrentView('batchManagement')}
+                                disabled={sortingResults.length === 0}
+                                className={`px-6 py-3 rounded-full text-lg font-semibold transition-all duration-300
+                                    ${currentView === 'batchManagement' ? 'bg-purple-600 text-white shadow-md' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed'}`}
+                            >
+                                ロット管理
+                            </button>
+                        </div>
+
+                        {/* メインコンテンツ */}
+                        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-inner min-h-[500px] flex items-center justify-center">
+                            {renderContent()}
+                        </div>
+
+                        {/* フッター */}
+                        <p className="text-center text-gray-500 text-sm mt-8">
+                            © 2025 果物品質管理AI匠ソーター. 無断複写・転載を禁じます。
+                        </p>
+                    </div>
+                    {modalMessage && <CustomModal message={modalMessage} onClose={() => setModalMessage(null)} />}
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

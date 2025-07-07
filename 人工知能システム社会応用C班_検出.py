@@ -10,10 +10,9 @@ from PIL import Image, ImageDraw, ImageFont
 CONFIG_FILE = 'config.json'
 FONT_PATH = 'NotoSansJP-VariableFont_wght.ttf'
 CONFIG = {}
-# ★★★ 変更点: 形状関連の変数を削除 ★★★
-# FOCAL_LENGTH と KNOWN_WIDTHS_MM は計算の基準としてのみ使用
 FOCAL_LENGTH = 1200
 KNOWN_WIDTHS_MM = {'apple': 90.0}
+DEFECT_MODEL_PATH = r"C:\Users\ok230075\PycharmProjects\pythonProject38\best.pt"
 
 
 def draw_text_japanese(frame, text, position, font_size, bg_color, text_color=(255, 255, 255)):
@@ -36,7 +35,6 @@ def load_settings():
     global CONFIG
     if not os.path.exists(CONFIG_FILE):
         print(f"エラー: 設定ファイル '{CONFIG_FILE}' が見つかりません。")
-        print("先に `configure_sorter.py` を実行して、設定ファイルを作成してください。")
         return False
     try:
         with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
@@ -50,18 +48,24 @@ def load_settings():
 
 def main_detector():
     """メインの検出処理"""
-    model = YOLO('yolov9c.pt')
+    fruit_model = YOLO('yolov9c.pt')
+    try:
+        defect_model = YOLO(DEFECT_MODEL_PATH)
+        print(f"✅ 傷検出モデル '{DEFECT_MODEL_PATH}' を読み込みました。")
+    except Exception as e:
+        print(f"エラー: 傷検出モデルの読み込みに失敗しました: {e}")
+        return
 
     try:
-        apple_class_id = [k for k, v in model.names.items() if v == 'apple'][0]
+        apple_class_id = [k for k, v in fruit_model.names.items() if v == 'apple'][0]
     except IndexError:
         print("エラー: YOLOモデルのクラス名に 'apple' が見つかりませんでした。")
         return
 
-    # 設定値を変数に格納
     DIAMETER_THRESHOLDS = {"min": CONFIG['apple_min_diameter_mm'], "max": CONFIG['apple_max_diameter_mm']}
     AREA_THRESHOLDS = {"min": CONFIG['apple_min_area_mm2'], "max": CONFIG['apple_max_area_mm2']}
     HSV_RANGES = [(np.array(r['lower']), np.array(r['upper'])) for r in CONFIG['apple_hsv_ranges']]
+    defect_confidence_threshold = 0.68
 
     print("\nカメラを起動します...'q'キーで終了します。")
     cap = cv2.VideoCapture(0)
@@ -73,9 +77,9 @@ def main_detector():
         ret, frame = cap.read()
         if not ret: break
 
-        results = model(frame, device='0', classes=[apple_class_id], verbose=False)
+        fruit_results = fruit_model.predict(frame, device='0', classes=[apple_class_id], verbose=False)
 
-        for result in results:
+        for result in fruit_results:
             for box in result.boxes:
                 if float(box.conf[0]) < 0.6: continue
 
@@ -83,53 +87,64 @@ def main_detector():
                 roi = frame[y1:y2, x1:x2]
                 if roi.size == 0: continue
 
+                # --- 1. 全ての情報を収集 ---
+                defect_results = defect_model.predict(roi, verbose=False)
+
+                # ★★★ 変更点: テンソルをNumPy配列に変換してから型変換 ★★★
+                detected_defects = [d.xyxy[0].cpu().numpy().astype(int) for d in defect_results[0].boxes if
+                                    d.conf[0] > defect_confidence_threshold]
+                has_defect = bool(detected_defects)
+
                 hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
                 final_mask = np.zeros(hsv_roi.shape[:2], dtype="uint8")
                 for lower, upper in HSV_RANGES:
                     final_mask = cv2.bitwise_or(final_mask, cv2.inRange(hsv_roi, lower, upper))
 
                 contours, _ = cv2.findContours(final_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                color_ok = bool(contours)
 
-                if not contours:
-                    # 色が範囲外の場合
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
-                    frame = draw_text_japanese(frame, "NG (色が範囲外)", (x1, y1 - 30), 22, (0, 0, 255))
-                    continue
+                diameter_mm = 0
+                area_mm2 = 0
+                size_ok = False
+                if color_ok:
+                    largest_contour = max(contours, key=cv2.contourArea)
+                    area_pixels = cv2.contourArea(largest_contour)
+                    if area_pixels >= 200:
+                        pixel_width = x2 - x1
+                        if pixel_width > 0:
+                            mm_per_pixel = KNOWN_WIDTHS_MM['apple'] / pixel_width
+                            diameter_mm = (math.sqrt(area_pixels / math.pi) * 2) * mm_per_pixel
+                            area_mm2 = area_pixels * (mm_per_pixel ** 2)
 
-                largest_contour = max(contours, key=cv2.contourArea)
-                area_pixels = cv2.contourArea(largest_contour)
-                if area_pixels < 200: continue
+                            if (DIAMETER_THRESHOLDS['min'] <= diameter_mm <= DIAMETER_THRESHOLDS['max']) and \
+                                    (AREA_THRESHOLDS['min'] <= area_mm2 <= AREA_THRESHOLDS['max']):
+                                size_ok = True
 
-                # --- 計算 ---
-                pixel_width = x2 - x1
-                if pixel_width <= 0: continue
-                mm_per_pixel = KNOWN_WIDTHS_MM['apple'] / pixel_width
-                diameter_mm = (math.sqrt(area_pixels / math.pi) * 2) * mm_per_pixel
-                area_mm2 = area_pixels * (mm_per_pixel ** 2)
-
-                # --- 判定 ---
-                # ★★★ 変更点: 形状判定を削除し、面積判定を追加 ★★★
-                is_ok = True
-                reason = ""
-                if not (DIAMETER_THRESHOLDS['min'] <= diameter_mm <= DIAMETER_THRESHOLDS['max']):
-                    is_ok = False
-                    reason = f"NG(直径): {diameter_mm:.1f}mm"
-                elif not (AREA_THRESHOLDS['min'] <= area_mm2 <= AREA_THRESHOLDS['max']):
-                    is_ok = False
-                    reason = f"NG(面積): {area_mm2:.1f}mm2"
-
-                # --- 描画 ---
-                if is_ok:
-                    color = (0, 255, 0)
-                    text = f"OK D:{diameter_mm:.1f} A:{area_mm2:.1f}"
+                # --- 2. 収集した情報から最終判定 ---
+                final_text = ""
+                final_color = (0, 0, 0)
+                if has_defect:
+                    final_color = (0, 165, 255);
+                    final_text = "NG (傷あり)"
+                elif not color_ok:
+                    final_color = (0, 0, 255);
+                    final_text = "NG (色が範囲外)"
+                elif not size_ok:
+                    final_color = (0, 0, 255);
+                    final_text = f"NG(サイズ) D:{diameter_mm:.1f} A:{area_mm2:.1f}"
                 else:
-                    color = (0, 0, 255)
-                    text = reason
+                    final_color = (0, 255, 0);
+                    final_text = f"OK D:{diameter_mm:.1f} A:{area_mm2:.1f}"
 
-                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                frame = draw_text_japanese(frame, text, (x1, y1 - 30), 22, color)
+                # --- 3. 最終結果と傷のバウンディングボックスを描画 ---
+                cv2.rectangle(frame, (x1, y1), (x2, y2), final_color, 2)
+                frame = draw_text_japanese(frame, final_text, (x1, y1 - 30), 22, final_color)
 
-        cv2.imshow("Apple Sorter (Size/Color Only)", frame)
+                if has_defect:
+                    for dx1, dy1, dx2, dy2 in detected_defects:
+                        cv2.rectangle(frame, (x1 + dx1, y1 + dy1), (x1 + dx2, y1 + dy2), (0, 165, 255), 2)
+
+        cv2.imshow("Apple Sorter", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
