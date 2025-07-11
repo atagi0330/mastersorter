@@ -1,0 +1,15 @@
+{
+  "name": "my-apple-sorter-app",
+  "version": "1.0.0",
+  "description": "果物品質管理AI 匠ソーター Electronアプリケーション",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^30.5.1"
+  }
+}

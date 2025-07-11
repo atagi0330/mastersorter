@@ -1,18 +1,18 @@
 {
-    "apple_min_diameter_mm": 87.20662001450408,
-    "apple_max_diameter_mm": 91.04224180175854,
-    "apple_min_area_mm2": 5972.948771345273,
-    "apple_max_area_mm2": 6509.9217398356395,
+    "apple_min_diameter_mm": 87.10781819856727,
+    "apple_max_diameter_mm": 89.82866596072255,
+    "apple_min_area_mm2": 5959.422186257124,
+    "apple_max_area_mm2": 6337.5264,
     "apple_hsv_ranges": [
         {
             "lower": [
-                1,
-                127,
-                204
+                0,
+                117,
+                190
             ],
             "upper": [
-                176,
-                255,
+                178,
+                247,
                 255
             ]
         }
