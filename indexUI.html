@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>果物品質管理AI 匠ソーター</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 20px 0;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .container {
+            background-color: white;
+            padding: 30px 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            margin-top: 30px;
+            width: 95%; /* 画面の95%の幅を使用 */
+            max-width: 1600px; /* さらに大きな最大幅 */
+            text-align: center;
+        }
+        h2 {
+            color: #2e7d32;
+            margin-bottom: 25px;
+            font-size: 1.8em;
+        }
+
+        .main-content-layout {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 40px; /* アイテム間の間隔をさらに広げる */
+            justify-content: center;
+            align-items: flex-start;
+            margin-top: 20px;
+        }
+
+        .button-group-wrapper {
+            flex: 0 1 400px; /* 基本幅を少し広げる */
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* --- 変更点: ここにgapをさらに広げる --- */
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 25px; /* ボタン間の間隔をさらに広げる */
+        }
+        /* --- 変更点ここまで --- */
+
+        .output-console-wrapper {
+            flex: 1 1 700px; /* 基本幅をさらに広げる */
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .button.stop-button {
+            background-color: #f44336;
+        }
+        .button.stop-button:hover {
+            background-color: #d32f2f;
+        }
+        .button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+        .button:active {
+            transform: translateY(0);
+        }
+        .info-text {
+            margin-top: 30px;
+            font-size: 1em;
+            color: #555;
+            line-height: 1.6;
+            text-align: left;
+        }
+        .output-console {
+            background-color: #222;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: left;
+            font-family: 'Consolas', 'Monaco', monospace;
+            white-space: pre-wrap;
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #444;
+            flex-grow: 1;
+        }
+        footer {
+            margin-top: auto;
+            padding: 20px;
+            color: #777;
+            font-size: 0.9em;
+            width: 100%;
+            text-align: center;
+            border-top: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>果物品質管理AI 匠ソーター</h1>
+    </header>
+
+    <div class="container">
+        <h2>リアルタイム果物検出システム</h2>
+        <p class="info-text">
+            このシステムは、リアルタイムでカメラから果物を検出し、その直径、面積、色、および傷の有無に基づいて品質を判定します。
+            利用を開始する前に、必ずキャリブレーションを実行してください。
+        </p>
+
+        <div class="main-content-layout">
+            <div class="button-group-wrapper">
+                <div class="button-group">
+                    <button class="button" id="calibrateButton">🍎 キャリブレーションを開始</button>
+                    <button class="button" id="detectButton">🔍 検出を開始</button>
+                    <button class="button stop-button" id="stopButton">🛑 実行中のプロセスを停止</button>
+                </div>
+                 <p class="info-text">
+                    <strong>キャリブレーションについて:</strong><br>
+                    「キャリブレーションを開始」ボタンをクリックすると、カメラが起動し、基準となるリンゴの直径、面積、色の範囲を登録できます。
+                    画面の指示に従って、異なるサイズのリンゴを2つ提示してください。
+                    これにより、システムが正確な測定を行うための基準が設定されます。<br><br>
+                    <strong>検出について:</strong><br>
+                    「検出を開始」ボタンをクリックすると、リアルタイムでの果物検出が始まります。
+                    カメラに映る果物の品質（OK/NG）と詳細情報（直径、面積、傷の有無、色の範囲外など）が表示されます。
+                    検出中にPythonスクリプトが独自のウィンドウを開きます。
+                    <br><br>
+                    <strong>重要:</strong> Pythonスクリプトがカメラウィンドウを開いている間は、このアプリケーションのボタンは反応しない場合があります。その場合は、Pythonのカメラウィンドウを閉じるか、「実行中のプロセスを停止」ボタンを押してください。
+                </p>
+            </div>
+
+            <div class="output-console-wrapper">
+                <h3>Pythonスクリプト出力:</h3>
+                <div class="output-console" id="outputConsole">
+                    アプリケーションの準備ができました。ボタンをクリックして開始してください。<br>
+                    Pythonスクリプトの出力がここに表示されます。
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 果物品質管理AI 匠ソーター開発チーム</p>
+    </footer>
+
+    <script src="renderer.js"></script>
+</body>
+</html>
