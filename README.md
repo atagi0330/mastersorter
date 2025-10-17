@@ -1,7 +1,8 @@
 人工知能（AI）や機械学習のアルゴリズム、ツール、アプリケーションを開発・実験するためのリポジトリです。このプロジェクトは、AI技術の研究、プロトタイピング、応用に関心のあるエンジニア、研究者、学生向けに設計されています。
 <img width="1282" height="655" alt="image" src="https://github.com/user-attachments/assets/37ad90dd-cbc7-4677-9255-f1ab55630a13" />
 <img widt<img width="626" height="639" alt="画像 (1)" src="https://github.com/user-attachments/assets/75d9be7a-310a-4b7f-ab95-071cd255d04a" />
-h="536" height="593" alt="スクリーンショット 2025-07-25 161531" src="https://github.com/user-attachments/assets/332c2240-d4f3-445f-934c-40bb5752dfe7" />
+<img width="536" height="593" alt="スクリーンショット 2025-07-25 161531" src="https://github.com/user-attachments/assets/98c8f93d-fd74-47b4-85b9-30340046d2bd" />
+
 
 ## 特徴
 
