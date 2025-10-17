@@ -1,4 +1,5 @@
 人工知能（AI）や機械学習のアルゴリズム、ツール、アプリケーションを開発・実験するためのリポジトリです。このプロジェクトは、AI技術の研究、プロトタイピング、応用に関心のあるエンジニア、研究者、学生向けに設計されています。
+スマートフォンアプリを通じて、農家の方が「お手本」となる果物の画像と品質データ（例：大きさ、色、糖度など）を登録するだけで、独自の選別AIモデルを簡単に作成・管理できます 。作成されたAIモデルは「〇〇農園 極甘一番成りモデル Ver.2」のようにバージョン管理され、農家のノウハウをデジタル資産として蓄積します 。
 <img width="1282" height="655" alt="image" src="https://github.com/user-attachments/assets/37ad90dd-cbc7-4677-9255-f1ab55630a13" />
 <img widt<img width="626" height="639" alt="画像 (1)" src="https://github.com/user-attachments/assets/75d9be7a-310a-4b7f-ab95-071cd255d04a" />
 <img width="536" height="593" alt="スクリーンショット 2025-07-25 161531" src="https://github.com/user-attachments/assets/98c8f93d-fd74-47b4-85b9-30340046d2bd" />
